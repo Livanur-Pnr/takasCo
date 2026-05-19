@@ -51,7 +51,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="title" style={{ fontSize: 24 }}>TakasApp</ThemedText>
+        <ThemedText type="title" style={{ fontSize: 24 }}>TakasCo</ThemedText>
         <TouchableOpacity onPress={() => router.push('/favorites')}>
           <IconSymbol name="heart.fill" size={24} color={Brand.danger} />
         </TouchableOpacity>

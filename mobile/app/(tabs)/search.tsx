@@ -68,7 +68,20 @@ export default function SearchScreen() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="title" style={{ fontSize: 24 }}>Keşfet</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          {params.categoryId && (
+            <TouchableOpacity 
+              onPress={() => {
+                router.setParams({ categoryId: '', categoryName: '' });
+                router.push('/(tabs)');
+              }}
+              style={{ padding: Spacing.two }}
+            >
+              <IconSymbol name="chevron.left" size={24} color={theme.text} />
+            </TouchableOpacity>
+          )}
+          <ThemedText type="title" style={{ fontSize: 24 }}>Keşfet</ThemedText>
+        </View>
         {params.categoryName && (
           <TouchableOpacity 
             style={{ backgroundColor: Brand.accent + '20', paddingHorizontal: Spacing.three, paddingVertical: 4, borderRadius: Radius.full }}

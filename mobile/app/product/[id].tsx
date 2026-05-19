@@ -1,8 +1,8 @@
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, Dimensions, Modal, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store'; // SecureStore eklendi
+import { useEffect, useState, useRef } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing, Radius } from '@/constants/theme';
@@ -15,20 +15,26 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null); // Giriş yapan kullanıcı ID'si
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Fullscreen Image Modal States
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const modalScrollRef = useRef<ScrollView>(null);
 
   const loadUserData = async () => {
     try {
       const userString = await SecureStore.getItemAsync('user'); 
-      console.log("Giriş Yapan Verisi:", userString);
-
       if (userString) {
         const userData = JSON.parse(userString);
-        setCurrentUserId(userData.id); // Artık userData.id dolu gelecek!
+        setCurrentUserId(userData.id);
       }
     } catch (error) {
       console.error('Veri çekme hatası:', error);
@@ -37,15 +43,12 @@ export default function ProductDetailScreen() {
 
   useEffect(() => {
     fetchProduct();
-    loadUserData(); // Kullanıcı verisini yükle
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadUserData();
   }, [id]);
-
 
   const fetchProduct = async () => {
     try {
       const response = await api.get(`/products/${id}`);
-      console.log("responseresponseresponse",response.data)
       setProduct(response.data);
     } catch (err) {
       console.error(err);
@@ -55,7 +58,6 @@ export default function ProductDetailScreen() {
       setLoading(false);
     }
   };
-  
 
   const toggleFavorite = async () => {
     try {
@@ -71,10 +73,7 @@ export default function ProductDetailScreen() {
       "İlanı Sil",
       "Bu ilanı silmek istediğinize emin misiniz?",
       [
-        { 
-          text: "Vazgeç", 
-          style: "cancel" 
-        },
+        { text: "Vazgeç", style: "cancel" },
         {
           text: "Sil",
           style: "destructive",
@@ -93,6 +92,20 @@ export default function ProductDetailScreen() {
     );
   };
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    setCurrentImageIndex(Math.round(index));
+  };
+
+  const openImageModal = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsModalVisible(true);
+    // Modal açıldığında doğru fotoğrafa kaydır
+    setTimeout(() => {
+      modalScrollRef.current?.scrollTo({ x: index * screenWidth, animated: false });
+    }, 100);
+  };
 
   if (loading) {
     return (
@@ -104,8 +117,13 @@ export default function ProductDetailScreen() {
 
   if (!product) return null;
 
-  // Yetkilendirme Kontrolü
   const isOwner = currentUserId === product.user_id;
+
+  const imagesList = product.images && product.images.length > 0 
+    ? product.images 
+    : product.image_path 
+      ? [{ id: 'primary', image_path: product.image_path.startsWith('[') ? JSON.parse(product.image_path)[0] : product.image_path }]
+      : [];
 
   return (
     <ThemedView style={styles.container}>
@@ -123,8 +141,39 @@ export default function ProductDetailScreen() {
           >
             <IconSymbol name="chevron.right" size={24} color={theme.text} style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
-          {product.image_path ? (
-            <Image source={{ uri: getImageUrl(product.image_path.startsWith('[') ? JSON.parse(product.image_path)[0] : product.image_path) || undefined }} style={{ width: '100%', height: '100%' }} />
+          
+          {imagesList.length > 0 ? (
+            <View>
+              <ScrollView 
+                ref={scrollRef}
+                horizontal 
+                pagingEnabled 
+                showsHorizontalScrollIndicator={false} 
+                style={{ width: screenWidth, height: 300 }}
+                onMomentumScrollEnd={handleScroll}
+              >
+                {imagesList.map((img: any, index: number) => (
+                  <TouchableOpacity activeOpacity={0.9} key={img.id} onPress={() => openImageModal(index)}>
+                    <Image source={{ uri: getImageUrl(img.image_path) || undefined }} style={{ width: screenWidth, height: 300, resizeMode: 'cover' }} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              
+              {/* Pagination Dots */}
+              {imagesList.length > 1 && (
+                <View style={styles.paginationContainer}>
+                  {imagesList.map((_: any, index: number) => (
+                    <View 
+                      key={index} 
+                      style={[
+                        styles.dot, 
+                        { backgroundColor: index === currentImageIndex ? Brand.accent : 'rgba(255,255,255,0.5)' }
+                      ]} 
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           ) : (
             <IconSymbol name="house.fill" size={64} color={theme.textSecondary} />
           )}
@@ -135,7 +184,6 @@ export default function ProductDetailScreen() {
             <ThemedText type="title" style={{ fontSize: 24, flex: 1 }} numberOfLines={2}>{product.title}</ThemedText>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.one }}>
-              {/* Silme Butonu: Sadece ilan sahibi için favori butonunun yanında */}
               {isOwner && (
                 <TouchableOpacity onPress={handleDelete} style={{ padding: Spacing.two }}>
                   <IconSymbol name="trash.fill" size={24} color={Brand.danger} />
@@ -181,9 +229,7 @@ export default function ProductDetailScreen() {
           </View>
         </View>
       </ScrollView>
-      
 
-      {/* Sadece başkasına ait ürünlerde 'Takas Teklif Et' butonu görünür */}
       {!isOwner && (
         <View style={[styles.footer, { backgroundColor: theme.backgroundElement, borderTopColor: theme.border }]}>
           <TouchableOpacity
@@ -194,14 +240,61 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Fullscreen Image Modal */}
+      <Modal visible={isModalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalContainer}>
+          <TouchableOpacity 
+            style={[styles.closeButton, { top: Math.max(insets.top, 20) }]} 
+            onPress={() => setIsModalVisible(false)}
+          >
+            <IconSymbol name="xmark" size={30} color="#fff" />
+          </TouchableOpacity>
+          
+          <ScrollView 
+            ref={modalScrollRef}
+            horizontal 
+            pagingEnabled 
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleScroll}
+          >
+            {imagesList.map((img: any) => (
+              <View key={img.id} style={{ width: screenWidth, height: screenHeight, justifyContent: 'center', alignItems: 'center' }}>
+                <Image 
+                  source={{ uri: getImageUrl(img.image_path) || undefined }} 
+                  style={{ width: screenWidth, height: screenHeight, resizeMode: 'contain' }} 
+                />
+              </View>
+            ))}
+          </ScrollView>
+          
+          {/* Fullscreen Pagination Dots */}
+          {imagesList.length > 1 && (
+            <View style={[styles.paginationContainer, { bottom: 40 }]}>
+              {imagesList.map((_: any, index: number) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.dot, 
+                    { backgroundColor: index === currentImageIndex ? Brand.accent : 'rgba(255,255,255,0.5)' }
+                  ]} 
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </Modal>
+
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  imagePlaceholder: { height: 300, justifyContent: 'center', alignItems: 'center' },
+  imagePlaceholder: { height: 300, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   backButton: { position: 'absolute', left: Spacing.four, padding: Spacing.two, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: Radius.full, zIndex: 10 },
+  paginationContainer: { flexDirection: 'row', position: 'absolute', bottom: 10, alignSelf: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   content: { padding: Spacing.four, gap: Spacing.four },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   category: { fontWeight: '600', fontSize: 16 },
@@ -211,5 +304,7 @@ const styles = StyleSheet.create({
   ownerAvatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   footer: { padding: Spacing.four, paddingBottom: Spacing.six, borderTopWidth: 1 },
   button: { padding: Spacing.four, borderRadius: Radius.sm, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
+  closeButton: { position: 'absolute', right: 20, zIndex: 100, padding: 10 }
 });

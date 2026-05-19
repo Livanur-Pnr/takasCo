@@ -15,7 +15,7 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $products = Product::where('status', 1)->with(['user', 'category', 'images'])->latest()->get();
+        $products = Product::whereIn('status', [1,2])->with(['user', 'category', 'images'])->latest()->get();
         return response()->json($products);
     }
 
@@ -177,39 +177,51 @@ class ProductController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // 1. Ürünü ve mevcut resimlerini bul (Eager Loading)
+            // 1. Ürünü ve mevcut resimlerini bul
             $product = Product::with('images')->findOrFail($id);
     
-            // 🛡️ SİBER GÜVENLİK KONTROLÜ: IDOR Engelleme
+            // 🛡️ SİBER GÜVENLİK KONTROLÜ
             if ($product->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Bu ilanı güncelleme yetkiniz bulunmamaktadır.'], 403);
             }
     
-            // 2. Metin alanlarını güncelle (Kısa ve temiz yol)
-            $product->update($request->only(['title', 'description', 'city', 'district', 'condition']));
+            // 2. Metin alanlarını güncelle
+            $product->update($request->only(['title', 'description', 'city', 'district', 'condition', 'swap_expectation']));
     
-            // 3. FOTOĞRAF YÖNETİMİ (Yeni tabloya geçiş)
-            if ($request->has('images')) {
+            // 3. FOTOĞRAF YÖNETİMİ (Gerçek Dosya Yükleme ve Yerel Kayıt)
+            if ($request->hasFile('images')) {
                 
-                // Postman'dan gelen veriyi diziye normalize edelim
-                $newImages = $request->has('images') 
-                    ? (array) $request->images
-                    : [] ;
-                    
-    
-                // ESKİ RESİMLERİ SİLELİM (Temiz bir başlangıç için)
-                // Not: Eğer resimleri korumak istersen burayı özelleştirebiliriz.
+                // A - ESKİ DOSYALARI FİZİKSEL OLARAK SİL (Sunucu temizliği için kritik!)
+                foreach ($product->images as $oldImage) {
+                    if (Storage::disk('public')->exists($oldImage->image_path)) {
+                        Storage::disk('public')->delete($oldImage->image_path);
+                    }
+                }
+                
+                // B - Veritabanındaki eski resim kayıtlarını temizle
                 $product->images()->delete();
     
-                // YENİ RESİMLERİ EKLEYELİM
-                if(!empty($newImages)){
-                    foreach ($newImages as $index => $path) {
-                        $product->images()->create([
-                            'image_path' => $path,
-                            'is_primary' => ($index === 0), // İlk resim kapak olsun
-                            'sort_order' => $index,
-                        ]);
-                    }
+                // C - YENİ DOSYALARI İŞLE VE KAYDET
+                foreach ($request->file('images') as $index => $file) {
+                    // Benzersiz dosya ismi oluştur
+                    $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    
+                    // Intervention Image ile resmi optimize et (800x800 kare yap)
+                    $manager = new ImageManager(new Driver());
+                    $image = $manager->decode($file->getRealPath());
+                    $image->cover(800, 800);
+                    
+                    // 'storage/app/public/products' klasörüne kaydet
+                    Storage::disk('public')->makeDirectory('products');
+                    $image->save(storage_path('app/public/products/' . $fileName));
+                    
+                    // Veritabanına göreli yolu kaydet
+                    $dbPath = 'products/' . $fileName;
+                    $product->images()->create([
+                        'image_path' => $dbPath,
+                        'is_primary' => ($index === 0),
+                        'sort_order' => $index,
+                    ]);
                 }
             }
     
@@ -219,38 +231,37 @@ class ProductController extends Controller
             ], 200);
     
         } catch (\Exception $e) {
-            // Hata olursa sebebini Postman'da görebilmen için:
             return response()->json([
                 'message' => 'Bir hata oluştu!',
                 'error' => $e->getMessage()
             ], 500);
         }
-        }
-        public function deleteImage(Request $request, $imageId)
-{
-    try {
-        $image = ProductImage::findOrFail($imageId);
-        $product = $image->product; // Resmin bağlı olduğu ürünü bul
-
-        // 🛡️ SİBER GÜVENLİK: Sadece ürün sahibi resmini silebilir (IDOR Koruması)
-        if ($product->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Bu resmi silme yetkiniz yok.'], 403);
-        }
-
-        // 1. Fiziksel dosyayı sunucudan (storage) sil
-        if (Storage::disk('public')->exists($image->image_path)) {
-            Storage::disk('public')->delete($image->image_path);
-        }
-
-        // 2. Veritabanı kaydını sil
-        $image->delete();
-
-        return response()->json(['message' => 'Resim başarıyla imha edildi.']);
-
-    } catch (\Exception $e) {
-        return response()->json(['error' => 'Silme başarısız.'], 500);
     }
-}
+    public function deleteImage(Request $request, $imageId)
+    {
+        try {
+            $image = ProductImage::findOrFail($imageId);
+            $product = $image->product; // Resmin bağlı olduğu ürünü bul
+
+            // 🛡️ SİBER GÜVENLİK: Sadece ürün sahibi resmini silebilir (IDOR Koruması)
+            if ($product->user_id !== $request->user()->id) {
+                return response()->json(['message' => 'Bu resmi silme yetkiniz yok.'], 403);
+            }
+
+            // 1. Fiziksel dosyayı sunucudan (storage) sil
+            if (Storage::disk('public')->exists($image->image_path)) {
+                Storage::disk('public')->delete($image->image_path);
+            }
+
+            // 2. Veritabanı kaydını sil
+            $image->delete();
+
+            return response()->json(['message' => 'Resim başarıyla imha edildi.']);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Silme başarısız.'], 500);
+        }
+    }
     }
 
 
