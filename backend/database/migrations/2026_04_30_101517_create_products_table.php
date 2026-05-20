@@ -17,8 +17,8 @@ return new class extends Migration
         $table->foreignId('category_id')->constrained()->onDelete('cascade');
         $table->string('title');
         $table->text('description');
-        $table->string('condition'); // Eksikti, ekledik
-        $table->text('swap_expectation'); // Hata veren sütun buydu, ekledik
+        $table->string('condition'); 
+        $table->text('swap_expectation'); 
         $table->string('image_path');
         $table->string('city')->nullable();
         $table->string('district')->nullable();

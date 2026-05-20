@@ -11,17 +11,15 @@ use Illuminate\View\View;
 
 class ConfirmablePasswordController extends Controller
 {
-    /**
-     * Show the confirm password view.
-     */
+    
+   // kullanıcıya şifresini tekrar onaylaması gereken şifre onay formu gösterir
+     
     public function show(): View
     {
         return view('auth.confirm-password');
     }
 
-    /**
-     * Confirm the user's password.
-     */
+   // girilen şifrenin doğruluğunu kontrol eder ve onay zamanını session'a kaydeder
     public function store(Request $request): RedirectResponse
     {
         if (! Auth::guard('web')->validate([
@@ -32,7 +30,7 @@ class ConfirmablePasswordController extends Controller
                 'password' => __('auth.password'),
             ]);
         }
-
+        // şifre doğruysa, Session ->oturum içerisine şifrenin onaylandığı anın timestampini kaydet
         $request->session()->put('auth.password_confirmed_at', time());
 
         return redirect()->intended(route('dashboard', absolute: false));

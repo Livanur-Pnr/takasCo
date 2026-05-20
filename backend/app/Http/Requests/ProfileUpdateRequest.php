@@ -1,5 +1,5 @@
 <?php
-
+//profil güncelleme isteklerini denetleyen bir form doğrulama
 namespace App\Http\Requests;
 
 use App\Models\User;

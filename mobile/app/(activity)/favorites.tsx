@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api, getImageUrl } from '@/utils/api';
 
+//// API'den gelecek ürün verisinin veri tipini tanımlama
 interface Product {
   id: number;
   title: string;

@@ -15,12 +15,11 @@ use Illuminate\Notifications\Notifiable;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    
+    //hasApiTokens=API üzerinden güvenli bir şekilde kullanıcı girişi yapmasını sağlayan token üretme
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * Get the attributes that should be cast.
-     *
+     *hangi veri tipine dönüştürüleceğini belirleme
      * @return array<string, string>
      */
     protected function casts(): array
@@ -30,17 +29,17 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-
+    //kullanıcının birden fazla ürün/ilan oluşturma
     public function products()
     {
         return $this->hasMany(Product::class);
     }
-
+    //kullanıcı birden fazla teklif yapabilir
     public function sentTrades()
     {
         return $this->hasMany(Trade::class, 'sender_id');
     }
-
+    //kullanıcıya birden fazla takas tekifi gelebilir    
     public function receivedTrades()
     {
         return $this->hasMany(Trade::class, 'receiver_id');

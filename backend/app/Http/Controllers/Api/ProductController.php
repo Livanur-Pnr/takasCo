@@ -13,26 +13,28 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    //aktif tüm ilanları listeleme
     public function index()
     {
+        //1=aktif, 2=onaylı ürün tamamıyla gelir
         $products = Product::whereIn('status', [1,2])->with(['user', 'category', 'images'])->latest()->get();
         return response()->json($products);
     }
-
+    //yeni ilan
     public function store(Request $request)
 {
-    try {
+    try { //doğrulama
         $request->validate([
             'title' => 'required|string|max:255',
             'category_id' => 'required|integer',
             'description' => 'required|string',
-            'condition' => 'required|string',
+            'condition' => 'required|string', //ürün durumu, sıfır vb
             'swap_expectation' => 'required|string',
             'city' => 'nullable|string|max:255',
             'district' => 'nullable|string|max:255',
             'images' => 'required|array|min:1|max:3',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-        ], [
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048', //resim max 2MB olmalı
+        ], [ //hata alma
             'title.required' => 'Lütfen başlık girin.',
             'category_id.required' => 'Lütfen kategori seçin.',
             'images.required' => 'Lütfen en az bir fotoğraf yükleyin.',
@@ -48,32 +50,34 @@ class ProductController extends Controller
                 $image = $manager->decode($file->getRealPath());
                 $image->cover(800, 800); // Resmi kare yapıp optimize ediyoruz
                 
+                // storageta products klasörü yoksa oluştur
                 Storage::disk('public')->makeDirectory('products');
+                //resmi fiziksel olarak diske kaydet
                 $image->save(storage_path('app/public/products/' . $fileName));
-                
+                //db dosya yolu
                 $paths[] = 'products/' . $fileName;
             }
         }
 
-        // 1. ÜRÜNÜ OLUŞTUR (Artık image_path sütunu burada yok!)
+        // 1. ürünü bilgisi kaydetme
         $product = Product::create([
             'user_id' => $request->user()->id, 
             'category_id' => $request->category_id,
             'title' => $request->title,
             'description' => $request->description,
             'condition' => $request->condition,
-            'swap_expectation' => $request->swap_expectation,
+            'swap_expectation' => $request->swap_expectation,//takas beklentisi
             'city' => $request->city ?? $request->user()->city,
             'district' => $request->district ?? $request->user()->district,
-            'status' => 1,
+            'status' => 1, //ilan durumu aktif
         ]);
 
-        // 2. RESİMLERİ İLİŞKİLİ TABLOYA KAYDET
+        // 2. resimleri product_images a kaydet 
         if (count($paths) > 0) {
             foreach ($paths as $index => $path) {
                 $product->images()->create([
                     'image_path' => $path,
-                    'is_primary' => ($index === 0), // İlk resim otomatik kapak olur
+                    'is_primary' => ($index === 0), // ilk resim otomatik kapak olur
                     'sort_order' => $index
                 ]);
             }
@@ -85,12 +89,12 @@ class ProductController extends Controller
         ], 201);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json(['errors' => $e->errors()], 422);
+        return response()->json(['errors' => $e->errors()], 422);//doğrulama
     } catch (\Exception $e) {
-        return response()->json(['message' => 'Bir hata oluştu.', 'error' => $e->getMessage()], 500);
+        return response()->json(['message' => 'Bir hata oluştu.', 'error' => $e->getMessage()], 500);//sunucu
     }
 }
-
+    //admin onayı
     public function approve($id)
     {
         $product = Product::findOrFail($id);
@@ -104,6 +108,7 @@ class ProductController extends Controller
     return response()->json($product);
     }
 
+    //kendi ilanlarını listele
     public function myProducts(Request $request)
     {
         $products = Product::where('user_id', $request->user()->id)->with('category')->latest()->get();
@@ -111,23 +116,25 @@ class ProductController extends Controller
     }
 
     
+    //favorilere ekleme veya çıkarma
     public function toggleFavorite(Request $request, $id)
     {
         $product = Product::findOrFail($id);
         $user = $request->user();
 
+        //daha once eklenmis mi kontrol
         $exists = \Illuminate\Support\Facades\DB::table('favorites')
             ->where('user_id', $user->id)
             ->where('product_id', $product->id)
             ->first();
 
-        if ($exists) {
+        if ($exists) { //favoriden cikarma
             \Illuminate\Support\Facades\DB::table('favorites')
                 ->where('user_id', $user->id)
                 ->where('product_id', $product->id)
                 ->delete();
             return response()->json(['message' => 'Favorilerden çıkarıldı', 'is_favorite' => false]);
-        } else {
+        } else {//ekleme
             \Illuminate\Support\Facades\DB::table('favorites')->insert([
                 'user_id' => $user->id,
                 'product_id' => $product->id,
@@ -154,7 +161,7 @@ class ProductController extends Controller
             // Ürünü bul, yoksa otomatik 404 döner
             $product = Product::findOrFail($id);
     
-            // GÜVENLİK KONTROLÜ: Giriş yapan kullanıcı ile ürün sahibi aynı mı?
+            //  giriş yapan kullanıcı ile ürün sahibi aynı mı ona dikkat et
             // $request->user()->id kullanmak Sanctum üzerinden gelen güvenli ID'yi verir.
             if ($product->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Bu ilanı silme yetkiniz bulunmamaktadır.'], 403);
@@ -174,34 +181,35 @@ class ProductController extends Controller
         }
     }
 
+    //mevcut ilan güncelleme
     public function update(Request $request, $id)
     {
         try {
-            // 1. Ürünü ve mevcut resimlerini bul
+            // ürünü ve mevcut resimlerini bul
             $product = Product::with('images')->findOrFail($id);
     
-            // 🛡️ SİBER GÜVENLİK KONTROLÜ
+            // erişim kontrolü
             if ($product->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Bu ilanı güncelleme yetkiniz bulunmamaktadır.'], 403);
             }
     
-            // 2. Metin alanlarını güncelle
+            //  metin alanlarını güncelle
             $product->update($request->only(['title', 'description', 'city', 'district', 'condition', 'swap_expectation']));
     
-            // 3. FOTOĞRAF YÖNETİMİ (Gerçek Dosya Yükleme ve Yerel Kayıt)
+            // fotoğraf yönetimi (Gerçek Dosya Yükleme ve Yerel Kayıt)
             if ($request->hasFile('images')) {
                 
-                // A - ESKİ DOSYALARI FİZİKSEL OLARAK SİL (Sunucu temizliği için kritik!)
+                // eski dosyayı fiziksel olarak silme (Sunucu temizliği için kritik!)
                 foreach ($product->images as $oldImage) {
                     if (Storage::disk('public')->exists($oldImage->image_path)) {
                         Storage::disk('public')->delete($oldImage->image_path);
                     }
                 }
                 
-                // B - Veritabanındaki eski resim kayıtlarını temizle
+                // veritabanındaki eski resim kayıtlarını temizle
                 $product->images()->delete();
     
-                // C - YENİ DOSYALARI İŞLE VE KAYDET
+                // yeni dosyaları işleme ve kaydetme 
                 foreach ($request->file('images') as $index => $file) {
                     // Benzersiz dosya ismi oluştur
                     $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
@@ -215,7 +223,7 @@ class ProductController extends Controller
                     Storage::disk('public')->makeDirectory('products');
                     $image->save(storage_path('app/public/products/' . $fileName));
                     
-                    // Veritabanına göreli yolu kaydet
+                    // veritabanına göreli yolu kaydet
                     $dbPath = 'products/' . $fileName;
                     $product->images()->create([
                         'image_path' => $dbPath,
@@ -243,17 +251,17 @@ class ProductController extends Controller
             $image = ProductImage::findOrFail($imageId);
             $product = $image->product; // Resmin bağlı olduğu ürünü bul
 
-            // 🛡️ SİBER GÜVENLİK: Sadece ürün sahibi resmini silebilir (IDOR Koruması)
+            // sadece ürün sahibi resmini silebilir 
             if ($product->user_id !== $request->user()->id) {
                 return response()->json(['message' => 'Bu resmi silme yetkiniz yok.'], 403);
             }
 
-            // 1. Fiziksel dosyayı sunucudan (storage) sil
+            // fiziksel dosyayı storagedan sil
             if (Storage::disk('public')->exists($image->image_path)) {
                 Storage::disk('public')->delete($image->image_path);
             }
 
-            // 2. Veritabanı kaydını sil
+            // 2. resmi db den sil 
             $image->delete();
 
             return response()->json(['message' => 'Resim başarıyla imha edildi.']);

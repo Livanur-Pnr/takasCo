@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        //Sık kullanılan verilerin (Örn: kategori listesi, popüler ilanlar) geçici saklandığı önbellek tablosu
         Schema::create('cache', function (Blueprint $table) {
             $table->string('key')->primary();
-            $table->mediumText('value');
+            $table->mediumText('value');// Önbelleğe atılan gerçek verinin serileştirilmiş/şifreli metin hali
             $table->bigInteger('expiration')->index();
         });
 
@@ -25,7 +26,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Sürüm geri alındığında (rollback) tabloları veritabanından silen metot
      */
     public function down(): void
     {

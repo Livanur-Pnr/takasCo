@@ -13,7 +13,7 @@ class Trade extends Model
         'requested_product_id',
         'status'
     ];
-
+//gönderen kim
     public function sender()
     {
         return $this->belongsTo(User::class, 'sender_id');
@@ -23,12 +23,12 @@ class Trade extends Model
     {
         return $this->belongsTo(User::class, 'receiver_id');
     }
-
+//teklif giden ürün ne
     public function offeredProduct()
     {
         return $this->belongsTo(Product::class, 'offered_product_id');
     }
-
+//takasta istenen ürün ne
     public function requestedProduct()
     {
         return $this->belongsTo(Product::class, 'requested_product_id');

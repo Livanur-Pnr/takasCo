@@ -26,13 +26,13 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
         });
-
+        //şifresini unutan user için geçici token
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
-
+        //web tarayıcı oturumlarını saklayan tablo
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -44,7 +44,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * // "php artisan migrate:rollback" veya "migrate:refresh" yapıldığında tabloları sırasıyla imha eden fonksiyon
      */
     public function down(): void
     {

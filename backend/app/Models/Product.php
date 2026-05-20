@@ -9,17 +9,19 @@ use App\Models\ProductImage;
 
 class Product extends Model
 {
-    use  SoftDeletes;
+    use  SoftDeletes;//dbden silinmez silindi olarak işaretlenir
 
     protected $dates = ['deleted_at'];
     protected $with = ['images'];
     protected $appends = ['image_path'];
 
+    // bir ürünün birden fazla resmi olabilir
     public function images()
     {
-        // Bir ürünün birden fazla resmi olabilir
+        //biribine bağladık 
         return $this->hasMany(ProductImage::class, 'product_id');
     }
+    //izin verilen güvenli sütun listesi
     protected $fillable = [
         'user_id',
         'category_id',
@@ -56,11 +58,8 @@ class Product extends Model
         return null;
     }
 
-    public function product()
-{
-    // Her resim sadece bir ürüne aittir
-    return $this->belongsTo(Product::class, 'product_id');
-}    public function user()
+    //// her ilan/ürün sadece bir kullanıcıya aittir
+      public function user()
     {
         return $this->belongsTo(User::class);
     }

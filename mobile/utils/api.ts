@@ -2,7 +2,7 @@ import { create } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
-
+//React Native / Expo) tarafı ile backend (Laravel API) tarafını birbirine bağlayan API İletişim ve Oturum Yönetimi (Axios Servisi) katmanı
 // Android Emulator için 10.0.2.2, iOS ve Web için 127.0.0.1 kullanılır.
 export const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000';
 const BASE_URL = `${API_BASE_URL}/api`;

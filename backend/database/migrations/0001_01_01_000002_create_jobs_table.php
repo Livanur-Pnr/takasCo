@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * kuyruk tablolarını veritabanında oluşturan metot
      */
     public function up(): void
-    {
+    { //arka planda çalışmayı bekleyen tüm işlerin tutulduğu ana kuyruk tablosu
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
             $table->string('queue')->index();
@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('available_at');
             $table->unsignedInteger('created_at');
         });
-
+        //birden fazla ilişkili görevin toplu takibini sağlayan tablo
         Schema::create('job_batches', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('name');
@@ -33,7 +33,7 @@ return new class extends Migration
             $table->integer('created_at');
             $table->integer('finished_at')->nullable();
         });
-
+        //tüm denemelere rağmen başarısız olan ve çöken görevlerin loglandığı çöp kutusu tablosu
         Schema::create('failed_jobs', function (Blueprint $table) {
             $table->id();
             $table->string('uuid')->unique();
@@ -46,7 +46,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * sürüm geri alındığında kuyruk yönetim tablolarını veritabanından tamamen silen metot
      */
     public function down(): void
     {

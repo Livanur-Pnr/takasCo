@@ -11,17 +11,13 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
+    // kullanıcıya giriş yapacağı html sayfasını login formunu gösterir
     public function create(): View
     {
         return view('auth.login');
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
+    // giriş formundan gelen verileri işler ve kullanıcı oturumunu başlatır
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
@@ -31,9 +27,7 @@ class AuthenticatedSessionController extends Controller
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
+    // kullanıcıya logout sağlar
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();

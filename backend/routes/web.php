@@ -17,8 +17,5 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/selam', function(){
-    dd('selamlar');
-});
-
+// Projenin web tabanlı giriş, kayıt, şifre sıfırlama rotalarını barındıran 'auth.php' dosyasını buraya dahil et (Enjekte et)
 require __DIR__.'/auth.php';

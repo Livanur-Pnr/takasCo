@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/address', [AuthController::class, 'updateAddress']);
     Route::delete('/products/images/{imageId}', [ProductController::class, 'deleteImage']);
 
+    //// Aktif Kullanıcı Bilgisi Çekme Rotaları
     Route::get('/user', fn (Request $request) => $request->user());
     
     Route::get('/my-products', function (Request $request) {

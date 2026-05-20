@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 class AuthController extends Controller
 {
     public function register(Request $request){
-        // 1. Gelen veriyi doğrula (Siber Güvenlik Savunması)
+        // gelen veriyi doğrulama
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -30,10 +30,10 @@ class AuthController extends Controller
         'name' => $request->name,
         'email' => $request->email,
         'phone_number' => $request->phone_number,
-        'password' => Hash::make($request->password), // Şifreyi asla açık metin tutma![cite: 1]
+        'password' => Hash::make($request->password), // şifreyi hashledik
         'is_admin' => false,
     ]);
-    // 3. Mobil uygulama için erişim anahtarı (Token) oluştur[cite: 1]
+    //  app için token oluşturduk
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
@@ -45,7 +45,7 @@ class AuthController extends Controller
 }
 public function login(Request $request)
 {
-    // 1. Gelen giriş bilgilerini doğrula
+    // önce gelen giriş bilgilerini doğrula
     $validator = Validator::make($request->all(), [
         'email' => 'required|string|email',
         'password' => 'required|string',
@@ -55,24 +55,24 @@ public function login(Request $request)
         return response()->json($validator->errors(), 422);
     }
 
-    // 2. Kullanıcıyı bul
+    // kullanıcıyı bul
     $user = User::where('email', $request->email)->first();
 
-    // 3. Kullanıcı var mı ve şifre doğru mu? (Hash kontrolü)
+    // kullanıcı var mı ve şifre doğru mu? (Hash kontrolü)
     if (!$user || !Hash::check($request->password, $user->password)) {
         return response()->json([
             'message' => 'Giriş bilgileri hatalı!'
         ], 401);
     }
 
-    // 4. Yeni bir anahtar (Token) üret
+    // yeni bir anahtar (Token) üret
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
         'message' => 'Giriş başarılı!',
         'access_token' => $token,
         'token_type' => 'Bearer',
-        'user' => $user // Mobil uygulama için kullanıcı bilgilerini de gönderelim
+        'user' => $user // app için kullanıcı bilgilerini de gönderelim
     ]);
 }
 
@@ -106,7 +106,7 @@ public function updateProfile(Request $request)
         Storage::disk('public')->makeDirectory('profiles');
         $image->save(storage_path('app/public/profiles/' . $fileName));
         
-        // Eski fotoğraf varsa silebiliriz (isteğe bağlı)
+        // eski fotoğraf varsa silebiliriz (isteğe bağlı)
         if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
             Storage::disk('public')->delete($user->profile_photo_path);
         }

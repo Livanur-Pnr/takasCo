@@ -12,7 +12,7 @@ class DatabaseSeeder extends Seeder
 {
 public function run(): void
 {
-    // 1. Kategoriler
+    // kategoriler
     $categories = ['Elektronik', 'Moda', 'Kitap & Hobi', 'Ev & Yaşam', 'Spor'];
     foreach ($categories as $name) {
         Category::firstOrCreate(['name' => $name]);
@@ -26,7 +26,7 @@ public function run(): void
         'sp' => Category::where('name', 'Spor')->first()->id,
     ];
 
-    // 2. Kullanıcı Veri Havuzu (10 Kişi)
+    // kullanıcılar
     $userData = [
         ['name' => 'Ahmet Teknoloji', 'email' => 'ahmet@example.com'],
         ['name' => 'Merve Moda', 'email' => 'merve@example.com'],
@@ -40,7 +40,7 @@ public function run(): void
         ['name' => 'Deniz Koleksiyon', 'email' => 'deniz@example.com'],
     ];
 
-    // 3. Ürün Havuzu
+    // kullanıcıların ürünleri
     $productPool = [
         'ahmet@example.com' => [
             ['t' => 'iPhone 13', 'c' => $ids['el'], 'd' => 'Pil %88, kutulu.', 's' => 'Macbook'],
@@ -113,7 +113,7 @@ public function run(): void
             ['t' => 'Daktilo', 'c' => $ids['ki'], 'd' => 'Erika marka, şeridi yeni.', 's' => 'Antika Obje'],
         ],
     ];
-
+    //konum random
     $locations = [
         ['city' => 'İstanbul', 'district' => 'Kadıköy'],
         ['city' => 'İstanbul', 'district' => 'Beşiktaş'],
@@ -127,29 +127,30 @@ public function run(): void
         ['city' => 'Muğla', 'district' => 'Bodrum'],
     ];
 
-    // 4. Döngü ile Oluşturma
+    // kullanıcı şablonlarını tek tek döndürme
     foreach ($userData as $u) {
         $location = $locations[array_rand($locations)];
+        //kullanıcı yoksa oluştur
         $user = User::firstOrCreate(['email' => $u['email']], [
             'name' => $u['name'],
             'phone_number' => '555' . rand(100, 999) . rand(10, 99) . rand(10, 99),
-            'password' => Hash::make('qwer1234'),
+            'password' => Hash::make('qwer1234'), //sabit şifre
             'address_title' => 'Ev',
             'city' => $location['city'],
             'district' => $location['district'],
         ]);
-
+        // oluşturulan kullanıcının e-posta adresine karşılık gelen ürün havuzunu dön
         foreach ($productPool[$u['email']] as $p) {
             Product::create([
                 'user_id' => $user->id,
                 'category_id' => $p['c'],
-                'title' => $p['t'],
+                'title' => $p['t'],//ilan basligi
                 'description' => $p['d'],
                 'condition' => 'Temiz',
                 'swap_expectation' => $p['s'],
-                'image_path' => "https://picsum.photos/seed/" . str_replace(' ', '', $p['t']) . "/800/800",
+                'image_path' => "https://picsum.photos/seed/" . str_replace(' ', '', $p['t']) . "/800/800",//görsel linki üret
                 'status' => 1,
-                'target_trade' => $p['s'],
+                'target_trade' => $p['s'],// hedeflenen takas ürünü
                 'city' => $location['city'],
                 'district' => $location['district'],
             ]);
